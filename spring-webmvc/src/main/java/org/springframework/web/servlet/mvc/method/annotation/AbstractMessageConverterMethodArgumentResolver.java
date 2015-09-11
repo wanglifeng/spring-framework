@@ -22,11 +22,11 @@ import java.io.PushbackInputStream;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-
 import javax.servlet.http.HttpServletRequest;
 
 import org.apache.commons.logging.Log;
@@ -37,10 +37,13 @@ import org.springframework.core.ResolvableType;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpInputMessage;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpRequest;
 import org.springframework.http.InvalidMediaTypeException;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.GenericHttpMessageConverter;
 import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.server.ServletServerHttpRequest;
 import org.springframework.util.Assert;
 import org.springframework.validation.Errors;
@@ -59,6 +62,9 @@ import org.springframework.web.method.support.HandlerMethodArgumentResolver;
  * @since 3.1
  */
 public abstract class AbstractMessageConverterMethodArgumentResolver implements HandlerMethodArgumentResolver {
+
+	private static final List<HttpMethod> SUPPORTED_METHODS =
+			Arrays.asList(HttpMethod.POST, HttpMethod.PUT, HttpMethod.PATCH);
 
 	private static final Object NO_VALUE = new Object();
 
@@ -128,8 +134,8 @@ public abstract class AbstractMessageConverterMethodArgumentResolver implements 
 	 * @throws IOException if the reading from the request fails
 	 * @throws HttpMediaTypeNotSupportedException if no suitable message converter is found
 	 */
-	protected <T> Object readWithMessageConverters(NativeWebRequest webRequest,
-			MethodParameter methodParam, Type paramType) throws IOException, HttpMediaTypeNotSupportedException {
+	protected <T> Object readWithMessageConverters(NativeWebRequest webRequest, MethodParameter methodParam,
+			Type paramType) throws IOException, HttpMediaTypeNotSupportedException, HttpMessageNotReadableException {
 
 		HttpInputMessage inputMessage = createInputMessage(webRequest);
 		return readWithMessageConverters(inputMessage, methodParam, paramType);
@@ -148,10 +154,11 @@ public abstract class AbstractMessageConverterMethodArgumentResolver implements 
 	 * @throws HttpMediaTypeNotSupportedException if no suitable message converter is found
 	 */
 	@SuppressWarnings("unchecked")
-	protected <T> Object readWithMessageConverters(HttpInputMessage inputMessage,
-			MethodParameter param, Type targetType) throws IOException, HttpMediaTypeNotSupportedException {
+	protected <T> Object readWithMessageConverters(HttpInputMessage inputMessage, MethodParameter param,
+			Type targetType) throws IOException, HttpMediaTypeNotSupportedException, HttpMessageNotReadableException {
 
 		MediaType contentType;
+		boolean noContentType = false;
 		try {
 			contentType = inputMessage.getHeaders().getContentType();
 		}
@@ -159,6 +166,7 @@ public abstract class AbstractMessageConverterMethodArgumentResolver implements 
 			throw new HttpMediaTypeNotSupportedException(ex.getMessage());
 		}
 		if (contentType == null) {
+			noContentType = true;
 			contentType = MediaType.APPLICATION_OCTET_STREAM;
 		}
 
@@ -170,6 +178,7 @@ public abstract class AbstractMessageConverterMethodArgumentResolver implements 
 			targetClass = (Class<T>) resolvableType.resolve();
 		}
 
+		HttpMethod httpMethod = ((HttpRequest) inputMessage).getMethod();
 		inputMessage = new EmptyBodyCheckingHttpInputMessage(inputMessage);
 		Object body = NO_VALUE;
 
@@ -213,6 +222,10 @@ public abstract class AbstractMessageConverterMethodArgumentResolver implements 
 		}
 
 		if (body == NO_VALUE) {
+			if (!SUPPORTED_METHODS.contains(httpMethod)
+					|| (noContentType && inputMessage.getBody() == null)) {
+				return null;
+			}
 			throw new HttpMediaTypeNotSupportedException(contentType, this.allSupportedMediaTypes);
 		}
 
@@ -273,6 +286,8 @@ public abstract class AbstractMessageConverterMethodArgumentResolver implements 
 
 		private final InputStream body;
 
+		private final HttpMethod method;
+
 
 		public EmptyBodyCheckingHttpInputMessage(HttpInputMessage inputMessage) throws IOException {
 			this.headers = inputMessage.getHeaders();
@@ -296,6 +311,7 @@ public abstract class AbstractMessageConverterMethodArgumentResolver implements 
 					pushbackInputStream.unread(b);
 				}
 			}
+			this.method = ((HttpRequest) inputMessage).getMethod();
 		}
 
 		@Override
@@ -306,6 +322,10 @@ public abstract class AbstractMessageConverterMethodArgumentResolver implements 
 		@Override
 		public InputStream getBody() throws IOException {
 			return this.body;
+		}
+
+		public HttpMethod getMethod() {
+			return this.method;
 		}
 	}
 

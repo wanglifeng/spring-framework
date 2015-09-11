@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2014 the original author or authors.
+ * Copyright 2002-2015 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -64,6 +64,7 @@ import org.springframework.web.util.UriUtils;
  *
  * @author Rossen Stoyanchev
  * @author Arjen Poutsma
+ * @author Sam Brannen
  * @since 3.2
  */
 public class MockHttpServletRequestBuilder
@@ -573,6 +574,7 @@ public class MockHttpServletRequestBuilder
 		}
 
 		request.setMethod(this.method.name());
+
 		for (String name : this.headers.keySet()) {
 			for (Object value : this.headers.get(name)) {
 				request.addHeader(name, value);
@@ -603,16 +605,20 @@ public class MockHttpServletRequestBuilder
 
 		request.setContentType(this.contentType);
 		request.setContent(this.content);
-		request.setCookies(this.cookies.toArray(new Cookie[this.cookies.size()]));
+		request.setCharacterEncoding(this.characterEncoding);
+
+		if (!ObjectUtils.isEmpty(this.cookies)) {
+			request.setCookies(this.cookies.toArray(new Cookie[this.cookies.size()]));
+		}
 
 		if (this.locale != null) {
 			request.addPreferredLocale(this.locale);
 		}
-		request.setCharacterEncoding(this.characterEncoding);
 
 		if (this.secure != null) {
 			request.setSecure(this.secure);
 		}
+
 		request.setUserPrincipal(this.principal);
 
 		for (String name : this.attributes.keySet()) {
@@ -639,8 +645,9 @@ public class MockHttpServletRequestBuilder
 	}
 
 	/**
-	 * Create a new {@link MockHttpServletRequest} based on the given
-	 * {@link ServletContext}. Can be overridden in subclasses.
+	 * Create a new {@link MockHttpServletRequest} based on the supplied
+	 * {@code ServletContext}.
+	 * <p>Can be overridden in subclasses.
 	 */
 	protected MockHttpServletRequest createServletRequest(ServletContext servletContext) {
 		return new MockHttpServletRequest(servletContext);

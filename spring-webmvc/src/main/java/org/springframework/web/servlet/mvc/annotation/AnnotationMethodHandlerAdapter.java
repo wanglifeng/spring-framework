@@ -138,8 +138,7 @@ import org.springframework.web.util.WebUtils;
  * @see #setMethodNameResolver
  * @see #setWebBindingInitializer
  * @see #setSessionAttributeStore
- *
- * @deprecated in Spring 3.2 in favor of
+ * @deprecated as of Spring 3.2, in favor of
  * {@link org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter RequestMappingHandlerAdapter}
  */
 @Deprecated
@@ -411,13 +410,10 @@ public class AnnotationMethodHandlerAdapter extends WebContentGenerator
 		}
 
 		if (annotatedWithSessionAttributes) {
-			// Always prevent caching in case of session attribute management.
-			checkAndPrepare(request, response, this.cacheSecondsForSessionAttributeHandlers);
-			// Prepare cached set of session attributes names.
+			checkAndPrepare(request, response, this.cacheSecondsForSessionAttributeHandlers, true);
 		}
 		else {
-			// Uses configured default cacheSeconds setting.
-			checkAndPrepare(request, response);
+			checkAndPrepare(request, response, true);
 		}
 
 		// Execute invokeHandlerMethod in synchronized block if required.
@@ -891,7 +887,7 @@ public class AnnotationMethodHandlerAdapter extends WebContentGenerator
 			else if (Principal.class.isAssignableFrom(parameterType)) {
 				return request.getUserPrincipal();
 			}
-			else if (Locale.class.equals(parameterType)) {
+			else if (Locale.class == parameterType) {
 				return RequestContextUtils.getLocale(request);
 			}
 			else if (InputStream.class.isAssignableFrom(parameterType)) {
@@ -917,7 +913,7 @@ public class AnnotationMethodHandlerAdapter extends WebContentGenerator
 
 			ResponseStatus responseStatusAnn = AnnotationUtils.findAnnotation(handlerMethod, ResponseStatus.class);
 			if (responseStatusAnn != null) {
-				HttpStatus responseStatus = responseStatusAnn.value();
+				HttpStatus responseStatus = responseStatusAnn.code();
 				String reason = responseStatusAnn.reason();
 				if (!StringUtils.hasText(reason)) {
 					webRequest.getResponse().setStatus(responseStatus.value());

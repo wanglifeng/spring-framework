@@ -57,6 +57,7 @@ public class ResponseStatusExceptionResolverTests {
 		assertNotNull("No ModelAndView returned", mav);
 		assertTrue("No Empty ModelAndView returned", mav.isEmpty());
 		assertEquals("Invalid status code", 400, response.getStatus());
+		assertTrue("Response has not been committed", response.isCommitted());
 	}
 
 	@Test
@@ -67,6 +68,7 @@ public class ResponseStatusExceptionResolverTests {
 		assertTrue("No Empty ModelAndView returned", mav.isEmpty());
 		assertEquals("Invalid status code", 410, response.getStatus());
 		assertEquals("Invalid status reason", "You suck!", response.getErrorMessage());
+		assertTrue("Response has not been committed", response.isCommitted());
 	}
 
 	@Test
@@ -110,19 +112,16 @@ public class ResponseStatusExceptionResolverTests {
 	@ResponseStatus(HttpStatus.BAD_REQUEST)
 	@SuppressWarnings("serial")
 	private static class StatusCodeException extends Exception {
-
 	}
 
-	@ResponseStatus(value = HttpStatus.GONE, reason = "You suck!")
+	@ResponseStatus(code = HttpStatus.GONE, reason = "You suck!")
 	@SuppressWarnings("serial")
 	private static class StatusCodeAndReasonException extends Exception {
-
 	}
 
-	@ResponseStatus(value = HttpStatus.GONE, reason = "gone.reason")
+	@ResponseStatus(code = HttpStatus.GONE, reason = "gone.reason")
 	@SuppressWarnings("serial")
 	private static class StatusCodeAndReasonMessageException extends Exception {
-
 	}
 
 }
